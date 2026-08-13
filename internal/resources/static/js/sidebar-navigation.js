@@ -5,6 +5,9 @@
 
     // ========== MODULE STATE ==========
     let hamburger, sidebar, content, body;
+
+    // Storage key for persisting sidebar directory states
+    const NAV_STATE_STORAGE_KEY = 'wikiGo.sidebarNavState';
     
     // Touch gesture state
     let touchStartX = 0, touchEndX = 0;
@@ -36,9 +39,91 @@
         initHamburgerMenu();
         initClickOutside();
         initSidebarLinks();
+        initNavExpandCollapse();
+        applyNavState();
         initTouchGestures();
         scrollActiveIntoView();
     });
+
+    // ========== NAV EXPAND/COLLAPSE ==========
+
+    function initNavExpandCollapse() {
+        const navItems = document.querySelector('.nav-items');
+        if (!navItems) return;
+
+        // Event delegation so it keeps working after refreshSidebar() re-renders the nav
+        navItems.addEventListener('click', function(e) {
+            const arrow = e.target.closest('.nav-arrow');
+            if (!arrow) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const navItem = arrow.closest('.nav-item');
+            if (!navItem) return;
+
+            const isOpen = navItem.classList.toggle('open');
+            arrow.setAttribute('aria-expanded', isOpen);
+            saveNavState();
+        });
+    }
+
+    // ========== NAV STATE PERSISTENCE ==========
+
+    function navItemPath(item) {
+        const link = item.querySelector(':scope > a');
+        return link ? link.getAttribute('href') : null;
+    }
+
+    function saveNavState() {
+        if (!sidebar) return;
+        const state = {};
+        sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
+            const path = navItemPath(item);
+            if (path) state[path] = item.classList.contains('open');
+        });
+        try {
+            sessionStorage.setItem(NAV_STATE_STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+            // Ignore storage errors (e.g. private mode / quota)
+        }
+    }
+
+    function applyNavState() {
+        if (!sidebar) return;
+        let state = {};
+        try {
+            state = JSON.parse(sessionStorage.getItem(NAV_STATE_STORAGE_KEY) || '{}');
+        } catch (e) {
+            state = {};
+        }
+        sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
+            const path = navItemPath(item);
+            if (path && state.hasOwnProperty(path)) {
+                const persistedOpen = state[path];
+                const serverOpen = item.classList.contains('open');
+
+                // If persisted state differs from server default:
+                if (persistedOpen !== serverOpen) {
+                    // Special case: If server says open (active path),
+                    // only collapse if it's NOT actually active.
+                    if (!persistedOpen && serverOpen) {
+                        if (!item.classList.contains('active') && !item.querySelector('.nav-item.active')) {
+                            item.classList.remove('open');
+                        }
+                    } else if (persistedOpen && !serverOpen) {
+                        item.classList.add('open');
+                    }
+                }
+
+                // Update arrow aria state to match final class
+                const arrow = item.querySelector('.nav-arrow');
+                if (arrow) {
+                    arrow.setAttribute('aria-expanded', item.classList.contains('open'));
+                }
+            }
+        });
+    }
 
     // ========== SIDEBAR CORE FUNCTIONS ==========
     
@@ -116,7 +201,10 @@
         if (!sidebar) return;
 
         sidebar.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', function() {
+            link.addEventListener('click', function(e) {
+                // Let the nav expand/collapse toggle handle arrow clicks
+                if (e.target.closest('.nav-arrow')) return;
+
                 // Close sidebar on mobile when link is clicked
                 if (window.innerWidth <= 768) {
                     closeSidebar();
@@ -424,6 +512,7 @@
                 if (navItems) {
                     navItems.innerHTML = newSidebar.innerHTML;
                     initSidebarLinks(); // Reinitialize click handlers
+                    applyNavState();    // Reapply persisted collapsed state
                 }
             }
         } catch (error) {
