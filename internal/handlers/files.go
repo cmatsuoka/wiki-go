@@ -16,6 +16,7 @@ import (
 	"wiki-go/internal/config"
 	"wiki-go/internal/i18n"
 	"wiki-go/internal/logger"
+	"wiki-go/internal/service"
 	"wiki-go/internal/utils"
 )
 
@@ -35,17 +36,11 @@ type FileInfo struct {
 	Type string `json:"type"` // MIME type or extension
 }
 
-// Document represents a document in the wiki
-type Document struct {
-	Title string `json:"title"`
-	Path  string `json:"path"`
-}
-
 // DocumentsResponse represents the response for the documents list API
 type DocumentsResponse struct {
-	Success   bool       `json:"success"`
-	Message   string     `json:"message,omitempty"`
-	Documents []Document `json:"documents"`
+	Success   bool              `json:"success"`
+	Message   string            `json:"message,omitempty"`
+	Documents []service.Document `json:"documents"`
 }
 
 // FolderInfo represents information about a folder
@@ -1026,79 +1021,28 @@ func debugFileValidation(fileContent []byte, filename string, detected, expected
 
 // ListDocumentsHandler handles requests to list all documents for the document picker
 func ListDocumentsHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
-	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
 
-	// Check if user is authenticated and has appropriate permissions
 	session := auth.GetSession(r)
-	if session == nil || (session.Role != config.RoleAdmin && session.Role != config.RoleEditor) {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(DocumentsResponse{
-			Success: false,
-			Message: "Unauthorized. Admin or editor access required.",
-		})
-		return
-	}
-
-	// Paths to scan for documents
-	documentsPath := filepath.Join(cfg.Wiki.RootDir, cfg.Wiki.DocumentsDir)
-
-	var documents []Document
-
-	// Find all documents in documents directory
-	err := filepath.WalkDir(documentsPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Check if this is a document.md file
-		if !d.IsDir() && d.Name() == "document.md" {
-			// Get the directory path (document path)
-			docDir := filepath.Dir(path)
-			// Convert to relative path
-			relPath, err := filepath.Rel(cfg.Wiki.RootDir, docDir)
-			if err != nil {
-				return nil // Skip this file
-			}
-
-			// Format the path for use in URLs
-			relPath = strings.ReplaceAll(relPath, "\\", "/")
-
-			// Get the document title from the markdown file
-			title := extractTitleFromMarkdown(path)
-			if title == "" {
-				// If no title found, use the parent directory name
-				title = filepath.Base(docDir)
-			}
-
-			// For regular documents, we want to remove the documents/ prefix
-			// since it's not part of the visible URL
-			if strings.HasPrefix(relPath, cfg.Wiki.DocumentsDir) {
-				relPath = strings.TrimPrefix(relPath, cfg.Wiki.DocumentsDir)
-				// Remove any leading slash that might remain
-				relPath = strings.TrimPrefix(relPath, "/")
-			}
-
-			// Add to documents list
-			documents = append(documents, Document{
-				Title: title,
-				Path:  "/" + relPath,
+	documents, err := service.List(cfg, session)
+	if err != nil {
+		switch {
+		case err == service.ErrUnauthorized:
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(DocumentsResponse{
+				Success: false,
+				Message: "Unauthorized. Admin or editor access required.",
+			})
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(DocumentsResponse{
+				Success: false,
+				Message: "Failed to list documents: " + err.Error(),
 			})
 		}
-
-		return nil
-	})
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(DocumentsResponse{
-			Success: false,
-			Message: "Failed to list documents: " + err.Error(),
-		})
 		return
 	}
 
-	// Return the documents list
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(DocumentsResponse{
 		Success:   true,

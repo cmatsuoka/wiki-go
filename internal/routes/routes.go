@@ -13,6 +13,7 @@ import (
 	"wiki-go/internal/config"
 	"wiki-go/internal/handlers"
 	"wiki-go/internal/logger"
+	"wiki-go/internal/mcp"
 	"wiki-go/internal/resources"
 )
 
@@ -489,6 +490,12 @@ func SetupRoutes(cfg *config.Config) {
 		// Otherwise, serve the page based on the URL path
 		handlers.PageHandler(w, r, cfg)
 	})
+
+	// MCP endpoint (opt-in, guarded by cfg.MCP.Enabled)
+	if cfg.MCP.Enabled {
+		mux.Handle(cfg.MCP.Path, mcp.NewHandler())
+		logger.Info("MCP server enabled at %s", cfg.MCP.Path)
+	}
 
 	// Apply middleware to all routes
 	handler := CSPMiddleware(mux)

@@ -88,6 +88,15 @@ type Config struct {
 			MaxBanSeconds     int  `yaml:"max_ban_seconds"`
 		} `yaml:"login_ban"`
 	} `yaml:"security"`
+	MCP struct {
+		// Enabled turns on the MCP server. Off by default; turn on to let agents use the MCP API.
+		Enabled bool `yaml:"enabled"`
+		// Path is the HTTP path where the MCP endpoint is mounted.
+		Path string `yaml:"path"`
+		// Token is the shared API token agents use for authentication.
+		// If empty, agents must use a user session cookie.
+		Token string `yaml:"token"`
+	} `yaml:"mcp"`
 }
 
 // LoadConfig loads the configuration from a YAML file
@@ -126,6 +135,10 @@ func LoadConfig(path string) (*Config, error) {
 	config.Security.LoginBan.WindowSeconds = 180
 	config.Security.LoginBan.InitialBanSeconds = 60
 	config.Security.LoginBan.MaxBanSeconds = 86400 // 24h
+
+	// MCP defaults
+	config.MCP.Enabled = false
+	config.MCP.Path = "/mcp"
 
 	// Read config file
 	data, err := os.ReadFile(path)
@@ -202,6 +215,9 @@ func LoadConfig(path string) (*Config, error) {
 				config.Security.LoginBan.MaxBanSeconds,
 				usersStr.String(),
 				accessRulesStr.String(),
+				config.MCP.Enabled,
+				config.MCP.Path,
+				config.MCP.Token,
 			)
 
 			// Write the config file
@@ -287,7 +303,14 @@ security:
 users:
 %s
 access_rules:
-%s`
+%s
+mcp:
+    # Enables the MCP server. Off by default; turn on to let agents use the MCP API.
+    enabled: %t
+    # The HTTP path where the MCP endpoint is mounted.
+    path: "%s"
+    # Shared API token for agent authentication. If empty, agents must use a session cookie.
+    token: "%s"`
 }
 
 // FormatUserEntry formats a single user entry for the config file
@@ -370,6 +393,9 @@ func SaveConfig(cfg *Config, w io.Writer) error {
 		cfg.Security.LoginBan.MaxBanSeconds,
 		usersStr.String(),
 		accessRulesStr.String(),
+		cfg.MCP.Enabled,
+		cfg.MCP.Path,
+		cfg.MCP.Token,
 	)
 
 	_, err := w.Write([]byte(configData))
