@@ -130,26 +130,26 @@ func (h *Handler) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
-	sessionID := h.srv.generateSessionID()
-	entry := &sessionEntry{
-		CreatedAt:    time.Now(),
-		ExpiresAt:    time.Now().Add(sessionTTL),
-		ResponseChan: make(chan []byte, 100),
-	}
-
-	h.srv.mu.Lock()
-	h.srv.sessions[sessionID] = entry
-	h.srv.mu.Unlock()
-
-	defer func() {
-		h.srv.mu.Lock()
-		entry := h.srv.sessions[sessionID]
-		delete(h.srv.sessions, sessionID)
-		h.srv.mu.Unlock()
-		if entry != nil {
-			close(entry.ResponseChan)
+	// Reuse an existing session when the client reconnects its SSE stream
+	// with a sessionId (per the Streamable HTTP spec). Otherwise create a
+	// new one. The session is NOT deleted when the stream closes — it lives
+	// until the TTL cleanup or an explicit DELETE, so a dropped SSE stream
+	// does not invalidate the client's session.
+	sessionID := r.URL.Query().Get("sessionId")
+	h.srv.mu.RLock()
+	entry, exists := h.srv.sessions[sessionID]
+	h.srv.mu.RUnlock()
+	if !exists {
+		sessionID = h.srv.generateSessionID()
+		entry = &sessionEntry{
+			CreatedAt:    time.Now(),
+			ExpiresAt:    time.Now().Add(sessionTTL),
+			ResponseChan: make(chan []byte, 100),
 		}
-	}()
+		h.srv.mu.Lock()
+		h.srv.sessions[sessionID] = entry
+		h.srv.mu.Unlock()
+	}
 
 	// Send endpoint event as per MCP spec
 	fmt.Fprintf(w, "event: endpoint\ndata: %s?sessionId=%s\n\n", r.URL.Path, sessionID)
@@ -159,7 +159,10 @@ func (h *Handler) handleSSE(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case msg := <-entry.ResponseChan:
+		case msg, ok := <-entry.ResponseChan:
+			if !ok {
+				return
+			}
 			fmt.Fprintf(w, "event: message\ndata: %s\n\n", string(msg))
 			flusher.Flush()
 		}
