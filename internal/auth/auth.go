@@ -32,6 +32,10 @@ var (
 	sessionStore *SessionStore
 )
 
+// GetSessionFunc is the function used to retrieve sessions. It defaults to GetSession
+// but can be overridden for testing.
+var GetSessionFunc func(*http.Request) *Session
+
 // IsExpired checks if the session has expired
 func (s *Session) IsExpired() bool {
 	return time.Now().After(s.ExpiresAt)
@@ -191,6 +195,10 @@ func GetSession(r *http.Request) *Session {
 	sessions[hashedToken] = session
 
 	return &session
+}
+
+func init() {
+	GetSessionFunc = GetSession
 }
 
 // ClearSession removes the session from the sessions map and clears the cookie
