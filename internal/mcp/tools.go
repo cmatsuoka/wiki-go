@@ -100,6 +100,18 @@ var toolDefinitions = []jsonrpcTool{
 			"required": ["path"]
 		}`),
 	},
+	{
+		Name:        "move_page",
+		Description: "Move or rename a page to a new path. Attempts to also move version history and comments (best-effort).",
+		InputSchema: json.RawMessage(`{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Current wiki path of the page"},
+				"newPath": {"type": "string", "description": "New wiki path for the page"}
+			},
+			"required": ["path", "newPath"]
+		}`),
+	},
 }
 
 // handleToolsList returns the list of available tools.
@@ -141,6 +153,8 @@ func (h *Handler) handleToolsCall(req *jsonrpcRequest) jsonrpcResponse {
 		result = h.callWritePage(cfg, sess, params.Arguments)
 	case "delete_page":
 		result = h.callDeletePage(cfg, sess, params.Arguments)
+	case "move_page":
+		result = h.callMovePage(cfg, sess, params.Arguments)
 	default:
 		return jsonrpcToolNotFound(req.ID, fmt.Sprintf("Unknown tool: %s", params.Name))
 	}
@@ -248,6 +262,22 @@ func (h *Handler) callDeletePage(cfg *config.Config, sess *auth.Session, args js
 		return errorResult(mapServiceError(err))
 	}
 	return textResult(fmt.Sprintf("Deleted page %s", p.Path))
+}
+
+// callMovePage implements the move_page tool.
+func (h *Handler) callMovePage(cfg *config.Config, sess *auth.Session, args json.RawMessage) toolResult {
+	var p struct {
+		Path    string `json:"path"`
+		NewPath string `json:"newPath"`
+	}
+	if err := json.Unmarshal(args, &p); err != nil {
+		return errorResult("Invalid arguments: " + err.Error())
+	}
+
+	if err := service.Move(cfg, sess, p.Path, p.NewPath); err != nil {
+		return errorResult(mapServiceError(err))
+	}
+	return textResult(fmt.Sprintf("Moved page %s -> %s", p.Path, p.NewPath))
 }
 
 // mapServiceError converts a service-layer error into a readable message.
