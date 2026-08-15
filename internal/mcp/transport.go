@@ -309,7 +309,7 @@ func (h *Handler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 
 		response = jsonrpcSuccess(req.ID, map[string]interface{}{
 			"protocolVersion": protocolVersion,
-			"capabilities":    jsonrpcCapabilities{},
+			"capabilities":    jsonrpcCapabilities{Tools: &jsonrpcToolCapabilities{}},
 			"serverInfo": map[string]interface{}{
 				"name":    serverName,
 				"version": serverVersion,
