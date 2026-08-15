@@ -493,7 +493,7 @@ func SetupRoutes(cfg *config.Config) {
 
 	// MCP endpoint (opt-in, guarded by cfg.MCP.Enabled)
 	if cfg.MCP.Enabled {
-		mux.Handle(cfg.MCP.Path, mcp.AuthWithConfig(cfg)(mcp.NewHandler()))
+		mux.Handle(cfg.MCP.Path, mcp.AuthWithConfig(cfg)(mcp.NewHandler(cfg)))
 		logger.Info("MCP server enabled at %s", cfg.MCP.Path)
 	}
 

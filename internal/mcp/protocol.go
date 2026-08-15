@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 )
 
@@ -12,6 +13,7 @@ type jsonrpcRequest struct {
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params,omitempty"`
 	ID      *int            `json:"id,omitempty"` // nil for notifications
+	ctx     context.Context // request context carrying the authenticated session
 }
 
 // jsonrpcResponse is a JSON-RPC 2.0 response or notification

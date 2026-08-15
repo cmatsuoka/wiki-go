@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"wiki-go/internal/config"
 )
 
 const (
@@ -44,6 +45,7 @@ type sessionEntry struct {
 // Handler serves MCP Streamable HTTP on a single path
 type Handler struct {
 	srv *mcpServer
+	cfg *config.Config
 }
 
 // mcpServer holds state for the MCP server
@@ -55,7 +57,7 @@ type mcpServer struct {
 }
 
 // NewHandler creates a new MCP handler
-func NewHandler() *Handler {
+func NewHandler(cfg *config.Config) *Handler {
 	srv := &mcpServer{
 		sessions: make(map[string]*sessionEntry),
 		ticker:   time.NewTicker(cleanupInterval),
@@ -63,7 +65,7 @@ func NewHandler() *Handler {
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 	go srv.cleanup(ctx)
-	return &Handler{srv: srv}
+	return &Handler{srv: srv, cfg: cfg}
 }
 
 // Close stops the session cleanup goroutine
@@ -252,7 +254,14 @@ func (h *Handler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate: get session from context (set by AuthMiddleware)
-	authSession, _ := SessionFromContext(r.Context())
+	authEntry, _ := SessionFromContext(r.Context())
+	var authSession any
+	if authEntry != nil {
+		authSession = authEntry.AuthSession
+	}
+
+	// Attach the request context to the JSON-RPC request so tools can access the session
+	req.ctx = r.Context()
 
 	// Get session ID from query param or header
 	sessionID := r.URL.Query().Get("sessionId")
@@ -318,24 +327,6 @@ func (h *Handler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSONResponse(w, response)
-}
-
-// handleToolsList returns the list of available tools
-func (h *Handler) handleToolsList(req *jsonrpcRequest) jsonrpcResponse {
-	return jsonrpcSuccess(req.ID, map[string]interface{}{
-		"tools": []jsonrpcTool{},
-	})
-}
-
-// handleToolsCall invokes a tool
-func (h *Handler) handleToolsCall(req *jsonrpcRequest) jsonrpcResponse {
-	params := parseToolCallParams(req.Params)
-
-	if params.Name == "" {
-		return jsonrpcInvalidParams(req.ID, "Tool name is required")
-	}
-
-	return jsonrpcToolNotFound(req.ID, fmt.Sprintf("Unknown tool: %s", params.Name))
 }
 
 // readJSONBody reads the request body up to a reasonable limit

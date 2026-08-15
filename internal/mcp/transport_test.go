@@ -8,6 +8,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"wiki-go/internal/auth"
+	"wiki-go/internal/config"
 )
 
 // extractJSONFromSSE extracts the JSON payload from an SSE response
@@ -20,7 +23,7 @@ func extractJSONFromSSE(body string) string {
 }
 
 func createTestHandler() *Handler {
-	return NewHandler()
+	return NewHandler(&config.Config{})
 }
 
 func injectSession(r *http.Request, sess *sessionEntry) *http.Request {
@@ -128,7 +131,7 @@ func TestHandleJSONRPCToolsCallUnknownTool(t *testing.T) {
 	callReq := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/call","params":{"name":"nonexistent"},"id":3}`))
 	callReq.Header.Set("Content-Type", "application/json")
 	callReq.Header.Set("Mcp-Session-Id", sessionID)
-	callReq = injectSession(callReq, &sessionEntry{})
+	callReq = injectSession(callReq, &sessionEntry{AuthSession: &auth.Session{Role: "editor"}})
 
 	callW := httptest.NewRecorder()
 	h.ServeHTTP(callW, callReq)
