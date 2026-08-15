@@ -209,6 +209,93 @@ func Create(cfg *config.Config, session *auth.Session, req CreateDocumentRequest
 	return "/" + cleanPath, nil
 }
 
+// Move moves a page from path to newPath, relocating its versions and comments.
+// Returns ErrNotFound if the source doesn't exist.
+// Returns ErrConflict if the target already exists.
+// Refuses to move the homepage (returns ErrNotFound).
+func Move(cfg *config.Config, session *auth.Session, path, newPath string) error {
+	if err := checkEditorRole(session); err != nil {
+		return err
+	}
+
+	if path == "" || path == "/" {
+		return ErrNotFound
+	}
+
+	// Resolve source
+	_, sourceDir, sourceRel := ResolveDocPath(cfg, path)
+	if isHomepage(sourceRel) {
+		return ErrNotFound
+	}
+
+	// Check source exists
+	if _, err := os.Stat(sourceDir); err != nil {
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+
+	// Sanitize and resolve target
+	sanitizedNewPath := utils.SanitizePath(newPath)
+	if sanitizedNewPath == "" {
+		return fmt.Errorf("invalid target path")
+	}
+
+	targetDocPath, targetDir, targetRel := ResolveDocPath(cfg, sanitizedNewPath)
+
+	// Reject if target is homepage
+	if isHomepage(targetRel) {
+		return ErrConflict
+	}
+
+	// Reject if target already exists
+	if _, err := os.Stat(targetDocPath); err == nil {
+		return ErrConflict
+	}
+
+	// Prevent moving a directory into its own subtree
+	if strings.HasPrefix(targetRel, sourceRel+string(filepath.Separator)) {
+		return fmt.Errorf("cannot move a page into its own subdirectory")
+	}
+
+	// Create target parent directory
+	if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
+		return err
+	}
+
+	// Move document directory
+	if err := os.Rename(sourceDir, targetDir); err != nil {
+		return err
+	}
+
+	logger.Info("User %s moved document %s -> %s", session.Username, path, sanitizedNewPath)
+
+	// Move versions
+	versionsSource := filepath.Join(cfg.Wiki.RootDir, "versions", sourceRel)
+	versionsTarget := filepath.Join(cfg.Wiki.RootDir, "versions", targetRel)
+	if _, err := os.Stat(versionsSource); err == nil {
+		if err := os.MkdirAll(filepath.Dir(versionsTarget), 0755); err != nil {
+			logger.Error("Failed to create versions target directory %s: %v", filepath.Dir(versionsTarget), err)
+		} else if moveErr := os.Rename(versionsSource, versionsTarget); moveErr != nil {
+			logger.Error("Failed to move versions directory %s -> %s: %v", versionsSource, versionsTarget, moveErr)
+		}
+	}
+
+	// Move comments
+	commentsSource := filepath.Join(cfg.Wiki.RootDir, "comments", sourceRel)
+	commentsTarget := filepath.Join(cfg.Wiki.RootDir, "comments", targetRel)
+	if _, err := os.Stat(commentsSource); err == nil {
+		if err := os.MkdirAll(filepath.Dir(commentsTarget), 0755); err != nil {
+			logger.Error("Failed to create comments target directory %s: %v", filepath.Dir(commentsTarget), err)
+		} else if moveErr := os.Rename(commentsSource, commentsTarget); moveErr != nil {
+			logger.Error("Failed to move comments directory %s -> %s: %v", commentsSource, commentsTarget, moveErr)
+		}
+	}
+
+	return nil
+}
+
 // Delete deletes a page and its versions/comments.
 // If protectChildren is true, returns ErrHasChildren when the page has child pages.
 // Returns ErrUnauthorized if the session lacks permissions.
