@@ -43,6 +43,9 @@
         applyNavState();
         initTouchGestures();
         scrollActiveIntoView();
+
+        // Persist state before the page unloads (handles all navigation paths)
+        window.addEventListener('pagehide', saveNavState);
     });
 
     // ========== NAV EXPAND/COLLAPSE ==========
@@ -71,17 +74,31 @@
     // ========== NAV STATE PERSISTENCE ==========
 
     function navItemPath(item) {
-        const link = item.querySelector(':scope > a');
-        return link ? link.getAttribute('href') : null;
+        const link = item.querySelector(':scope > .nav-item-header > a');
+        if (!link) return null;
+
+        // Use pathname to get a consistent relative path from the root
+        // This avoids issues with absolute vs relative URLs
+        return new URL(link.href, window.location.origin).pathname;
     }
 
     function saveNavState() {
         if (!sidebar) return;
-        const state = {};
+
+        let state = {};
+        try {
+            state = JSON.parse(sessionStorage.getItem(NAV_STATE_STORAGE_KEY) || '{}');
+        } catch (e) {
+            state = {};
+        }
+
         sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
             const path = navItemPath(item);
-            if (path) state[path] = item.classList.contains('open');
+            if (path) {
+                state[path] = item.classList.contains('open');
+            }
         });
+
         try {
             sessionStorage.setItem(NAV_STATE_STORAGE_KEY, JSON.stringify(state));
         } catch (e) {
@@ -91,37 +108,35 @@
 
     function applyNavState() {
         if (!sidebar) return;
+
+        const navItems = sidebar.querySelector('.nav-items');
+        const alwaysOpen = navItems && navItems.dataset.alwaysOpen === 'true';
+
         let state = {};
         try {
             state = JSON.parse(sessionStorage.getItem(NAV_STATE_STORAGE_KEY) || '{}');
         } catch (e) {
             state = {};
         }
+
         sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
             const path = navItemPath(item);
+            const hasActiveChild = item.querySelector('.nav-item.active') !== null || item.classList.contains('active');
+
+            let isOpen;
             if (path && state.hasOwnProperty(path)) {
-                const persistedOpen = state[path];
-                const serverOpen = item.classList.contains('open');
-
-                // If persisted state differs from server default:
-                if (persistedOpen !== serverOpen) {
-                    // Special case: If server says open (active path),
-                    // only collapse if it's NOT actually active.
-                    if (!persistedOpen && serverOpen) {
-                        if (!item.classList.contains('active') && !item.querySelector('.nav-item.active')) {
-                            item.classList.remove('open');
-                        }
-                    } else if (persistedOpen && !serverOpen) {
-                        item.classList.add('open');
-                    }
-                }
-
-                // Update arrow aria state to match final class
-                const arrow = item.querySelector('.nav-arrow');
-                if (arrow) {
-                    arrow.setAttribute('aria-expanded', item.classList.contains('open'));
-                }
+                // Honor explicit expand/collapse choices made by the user.
+                isOpen = state[path];
+            } else if (alwaysOpen) {
+                isOpen = true;
+            } else {
+                // First visit to this directory: expand only the active branch.
+                isOpen = hasActiveChild;
             }
+
+            item.classList.toggle('open', isOpen);
+            const arrow = item.querySelector('.nav-arrow');
+            if (arrow) arrow.setAttribute('aria-expanded', String(isOpen));
         });
     }
 
@@ -204,6 +219,9 @@
             link.addEventListener('click', function(e) {
                 // Let the nav expand/collapse toggle handle arrow clicks
                 if (e.target.closest('.nav-arrow')) return;
+
+                // Persist all directory states before navigation
+                saveNavState();
 
                 // Close sidebar on mobile when link is clicked
                 if (window.innerWidth <= 768) {
