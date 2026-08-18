@@ -94,9 +94,14 @@
 
         sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
             const path = navItemPath(item);
-            if (path) {
-                state[path] = item.classList.contains('open');
-            }
+            if (!path) return;
+
+            // Don't persist the forced-open state of the active page's
+            // ancestors; that state is derived from the current page and
+            // should not be treated as a user's explicit choice.
+            if (item.querySelector('.nav-item.active') !== null) return;
+
+            state[path] = item.classList.contains('open');
         });
 
         try {
@@ -124,17 +129,21 @@
 
         container.querySelectorAll('.nav-item.directory').forEach(item => {
             const path = navItemPath(item);
-            const hasActiveChild = item.querySelector('.nav-item.active') !== null || item.classList.contains('active');
+            const hasActiveDescendant = item.querySelector('.nav-item.active') !== null;
 
             let isOpen;
-            if (path && state.hasOwnProperty(path)) {
+            if (hasActiveDescendant) {
+                // The active page must always be visible: expand its ancestors
+                // regardless of any previously persisted collapse state.
+                isOpen = true;
+            } else if (path && state.hasOwnProperty(path)) {
                 // Honor explicit expand/collapse choices made by the user.
                 isOpen = state[path];
             } else if (alwaysOpen) {
                 isOpen = true;
             } else {
-                // First visit to this directory: expand only the active branch.
-                isOpen = hasActiveChild;
+                // First visit to this directory: keep it collapsed.
+                isOpen = false;
             }
 
             item.classList.toggle('open', isOpen);
