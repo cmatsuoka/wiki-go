@@ -80,3 +80,10 @@ access_rules:
     - pattern: "/internal/**"
       access: private
       description: "Example Internal section visible to logged-in users"
+mcp:
+    # Enables the MCP server. Off by default; turn on to let agents use the MCP API.
+    enabled: false
+    # The HTTP path where the MCP endpoint is mounted.
+    path: "/mcp"
+    # Shared API token for agent authentication.
+    token: ""
