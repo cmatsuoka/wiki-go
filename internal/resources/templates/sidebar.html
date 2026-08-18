@@ -20,47 +20,7 @@
     <div class="nav-items" data-always-open="{{.Navigation.AlwaysOpen}}">
         {{template "nav-items" .Navigation}}
     </div>
-    <script>
-        // Restore the sidebar tree to its final expanded/collapsed state
-        // synchronously, before the browser paints, to avoid a flicker.
-        (function() {
-            var navItems = document.querySelector('.nav-items');
-            if (!navItems) return;
-
-            var alwaysOpen = navItems.getAttribute('data-always-open') === 'true';
-            var state = {};
-            try {
-                state = JSON.parse(sessionStorage.getItem('wikiGo.sidebarNavState') || '{}');
-            } catch (e) {
-                state = {};
-            }
-
-            navItems.querySelectorAll('.nav-item.directory').forEach(function(item) {
-                var link = item.querySelector(':scope > .nav-item-header > a');
-                if (!link) return;
-
-                var path = new URL(link.href, window.location.origin).pathname;
-                var hasActiveChild = item.querySelector('.nav-item.active') !== null ||
-                                     item.classList.contains('active');
-                var isOpen;
-
-                if (state.hasOwnProperty(path)) {
-                    // Respect explicit user preference above all else.
-                    isOpen = state[path];
-                } else if (alwaysOpen) {
-                    isOpen = true;
-                } else {
-                    // On the first visit to this path, expand the active branch
-                    // so the current page is visible.
-                    isOpen = hasActiveChild;
-                }
-
-                item.classList.toggle('open', isOpen);
-                var arrow = item.querySelector('.nav-arrow');
-                if (arrow) arrow.setAttribute('aria-expanded', String(isOpen));
-            });
-        })();
-    </script>
+    <script src="/static/js/sidebar-navigation.js?={{getVersion}}"></script>
     <div class="sidebar-footer">
         <div class="owner">{{.Config.Wiki.Owner}}</div>
         <div class="notice">{{processShortcodes .Config.Wiki.Notice}}</div>

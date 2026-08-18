@@ -106,10 +106,13 @@
         }
     }
 
-    function applyNavState() {
-        if (!sidebar) return;
+    function applyNavState(container) {
+        container = container || sidebar;
+        if (!container) return;
 
-        const navItems = sidebar.querySelector('.nav-items');
+        const navItems = container.classList && container.classList.contains('nav-items')
+            ? container
+            : container.querySelector('.nav-items');
         const alwaysOpen = navItems && navItems.dataset.alwaysOpen === 'true';
 
         let state = {};
@@ -119,7 +122,7 @@
             state = {};
         }
 
-        sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
+        container.querySelectorAll('.nav-item.directory').forEach(item => {
             const path = navItemPath(item);
             const hasActiveChild = item.querySelector('.nav-item.active') !== null || item.classList.contains('active');
 
@@ -538,8 +541,18 @@
         }
     }
 
+    // Apply persisted state as early as possible when this script is loaded
+    // directly after the nav tree markup, so the tree is rendered in its final
+    // expanded/collapsed form before the browser paints.
+    (function applyNavStateEarly() {
+        const earlyNavItems = document.querySelector('.nav-items');
+        if (earlyNavItems) {
+            applyNavState(earlyNavItems);
+        }
+    })();
+
     // ========== PUBLIC API ==========
-    
+
     window.SidebarNavigation = {
         toggleSidebar: toggleSidebar,
         openSidebar: openSidebar,
