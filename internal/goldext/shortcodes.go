@@ -173,7 +173,7 @@ func renderDocumentCount(w *strings.Builder, countParam string) {
 	var description string
 
 	// Only count documents in the documents directory
-	docsDir := "data/documents"
+	docsDir := DocumentsRoot()
 
 	// Count all documents (using * or all as wildcard)
 	if countParam == "*" || countParam == "all" {
@@ -200,7 +200,7 @@ func renderDocumentCount(w *strings.Builder, countParam string) {
 
 // renderRecentEdits renders the recent edits HTML
 func renderRecentEdits(w *strings.Builder, count int) {
-	renderRecentEditsFromDir(w, "data/documents", count)
+	renderRecentEditsFromDir(w, DocumentsRoot(), count)
 }
 
 // renderRecentEditsFromDir is the testable core of renderRecentEdits and

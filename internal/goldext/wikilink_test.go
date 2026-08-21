@@ -84,10 +84,10 @@ func TestWikiLinkPreprocessor(t *testing.T) {
 	}
 }
 
-// writePage creates data/documents/<rel>/document.md under dir.
+// writePage creates documents/<rel>/document.md under dir.
 func writePage(t *testing.T, dir, rel string) {
 	t.Helper()
-	full := filepath.Join(dir, documentsRoot, filepath.FromSlash(rel), "document.md")
+	full := filepath.Join(dir, DocumentsRoot(), filepath.FromSlash(rel), "document.md")
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -159,9 +159,9 @@ func TestSlugCacheRevalidatesOnMtimeChange(t *testing.T) {
 	// Add the page so it now exists in the tree.
 	writePage(t, dir, "section/new-page")
 
-	// Bump the mtime on documentsRoot so the cache detects a change.
+	// Bump the documents-root mtime so the cache detects a change.
 	newMtime := time.Now().Add(2 * time.Second)
-	docsDir := filepath.Join(dir, documentsRoot)
+	docsDir := filepath.Join(dir, DocumentsRoot())
 	if err := os.Chtimes(docsDir, newMtime, newMtime); err != nil {
 		t.Fatal(err)
 	}
@@ -171,5 +171,24 @@ func TestSlugCacheRevalidatesOnMtimeChange(t *testing.T) {
 	want := "[new-page](/section/new-page)"
 	if got != want {
 		t.Errorf("after add: got %q, want %q", got, want)
+	}
+}
+
+func TestWikiLinkPreprocessor_UsesConfiguredAbsoluteRoot(t *testing.T) {
+	rootDir := t.TempDir()
+	ConfigureContentPaths(rootDir, "documents")
+	t.Cleanup(func() { ConfigureContentPaths("data", "documents") })
+
+	pagePath := filepath.Join(rootDir, "documents", "nucilandia", "document.md")
+	if err := os.MkdirAll(filepath.Dir(pagePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pagePath, []byte("# Nucilandia"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := WikiLinkPreprocessor("[[nucilandia]]", "")
+	if got != "[nucilandia](/nucilandia)" {
+		t.Errorf("got %q, want %q", got, "[nucilandia](/nucilandia)")
 	}
 }

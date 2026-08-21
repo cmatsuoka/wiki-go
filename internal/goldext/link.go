@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -188,14 +189,15 @@ func LinkPreprocessor(markdown string, docPath string) string {
 					path = resolveLocalPath(path, docPath)
 				}
 
-				// Check absolute doc paths (e.g., /hehe -> data/documents/hehe)
+				// Check absolute doc paths (e.g., /hehe -> configured documents root/hehe)
 				if strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "/api/") {
 					// Strip anchor fragment for filesystem check only
 					checkPath := path
 					if idx := strings.Index(checkPath, "#"); idx != -1 {
 						checkPath = checkPath[:idx]
 					}
-					if _, err := os.Stat("data/documents" + checkPath); os.IsNotExist(err) {
+					fsPath := filepath.Join(DocumentsRoot(), strings.TrimLeft(checkPath, "/"))
+					if _, err := os.Stat(fsPath); os.IsNotExist(err) {
 						notFound = true
 					}
 				}
@@ -247,9 +249,9 @@ func isLocalPath(path string) bool {
 func getAttachmentPath(path, docPath string) string {
 	docPath = strings.TrimLeft(docPath, "/")
 	if docPath == "" || docPath == "/" {
-		return "data/pages/home/" + path
+		return filepath.Join(homepageRoot(), path)
 	}
-	return "data/documents/" + docPath + "/" + path
+	return filepath.Join(DocumentsRoot(), docPath, path)
 }
 
 // resolveLocalPath resolves a local path relative to the document path

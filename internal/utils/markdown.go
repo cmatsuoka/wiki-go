@@ -28,7 +28,7 @@ func RenderMarkdownFile(filePath string) ([]byte, error) {
 	docDir := filepath.Dir(filePath)
 
 	// Convert to a relative path for URL construction
-	relPath, err := filepath.Rel(filepath.Join("data", "documents"), docDir)
+	relPath, err := filepath.Rel(goldext.DocumentsRoot(), docDir)
 	if err != nil {
 		// If we can't get a relative path, just use the directory name
 		relPath = filepath.Base(docDir)
@@ -108,9 +108,9 @@ func RenderMarkdownWithPath(md string, docPath string) []byte {
 			extension.Strikethrough, // Enable ~~strikethrough~~
 			extension.Linkify,       // Auto-link URLs
 			// extension.TaskList,    // Disabled - we use our own task list processor
-			extension.Footnote,       // Enable footnotes
-			extension.DefinitionList, // Enable definition lists
-			extension.GFM,            // GitHub Flavored Markdown
+			extension.Footnote,        // Enable footnotes
+			extension.DefinitionList,  // Enable definition lists
+			extension.GFM,             // GitHub Flavored Markdown
 			goldext.OnePasswordIgnore, // Add data-1p-ignore to code blocks
 			// MathJax is now handled via client-side JavaScript
 		),
@@ -174,13 +174,13 @@ func injectSourceLines(htmlStr string, md string) string {
 	}
 
 	var blockLines []int
-	inList      := false
-	inTable     := false
+	inList := false
+	inTable := false
 	inCodeBlock := false
 	var codeFence string
-	prevBQDepth := 0   // previous blockquote depth
-	inBQList    := false // inside a list within a blockquote
-	inBQCode    := false // inside a code block within a blockquote
+	prevBQDepth := 0  // previous blockquote depth
+	inBQList := false // inside a list within a blockquote
+	inBQCode := false // inside a code block within a blockquote
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -315,7 +315,7 @@ func injectSourceLines(htmlStr string, md string) string {
 
 	blockIdx := 0
 	tableDepth := 0
-	listDepth  := 0
+	listDepth := 0
 
 	// Also match </table>, </ol>, </ul> so we can track when we leave those contexts
 	anyTagRe := regexp.MustCompile(`(?i)<(/?)` +
@@ -327,8 +327,8 @@ func injectSourceLines(htmlStr string, md string) string {
 		if sub == nil || len(sub) < 8 {
 			return match
 		}
-		closing  := match[sub[2]:sub[3]] // "/" or ""
-		tagName  := match[sub[4]:sub[5]] // tag name
+		closing := match[sub[2]:sub[3]]  // "/" or ""
+		tagName := match[sub[4]:sub[5]]  // tag name
 		trailing := match[sub[6]:sub[7]] // space or >
 
 		lowerTag := strings.ToLower(tagName)
@@ -336,7 +336,9 @@ func injectSourceLines(htmlStr string, md string) string {
 		// Track table depth
 		if lowerTag == "table" {
 			if closing == "/" {
-				if tableDepth > 0 { tableDepth-- }
+				if tableDepth > 0 {
+					tableDepth--
+				}
 			} else {
 				tableDepth++
 			}
@@ -345,7 +347,9 @@ func injectSourceLines(htmlStr string, md string) string {
 		// Track list depth (ol and ul share the same counter)
 		if lowerTag == "ol" || lowerTag == "ul" {
 			if closing == "/" {
-				if listDepth > 0 { listDepth-- }
+				if listDepth > 0 {
+					listDepth--
+				}
 			} else {
 				listDepth++
 			}

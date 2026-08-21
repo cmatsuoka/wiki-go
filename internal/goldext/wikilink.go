@@ -11,10 +11,6 @@ import (
 	"time"
 )
 
-// documentsRoot is the directory Wiki-Go stores documents under, relative to
-// the working directory at runtime (matching LinkPreprocessor's convention).
-const documentsRoot = "data/documents"
-
 // wikiLinkRe matches [[target]] or [[target|label]]. The optional leading "!"
 // is captured so Obsidian-style embeds (![[...]]) can be left untouched.
 var wikiLinkRe = regexp.MustCompile(`(!?)\[\[([^\]\n]+)\]\]`)
@@ -31,6 +27,7 @@ var slugCache struct {
 // cachedSlugIndex returns the slug→path index, rebuilding it only when the
 // mtime of documentsRoot has changed since the last build.
 func cachedSlugIndex() map[string]string {
+	documentsRoot := DocumentsRoot()
 	info, err := os.Stat(documentsRoot)
 	var mtime time.Time
 	if err == nil {
@@ -85,7 +82,7 @@ func WikiLinkPreprocessor(markdown string, docPath string) string {
 	sections := splitCodeSections(markdown)
 
 	// Resolve a bare name via the cached slug index (rebuilt only when
-	// data/documents mtime changes).
+	// configured documents-root mtime changes).
 	resolveName := func(name string) string {
 		return cachedSlugIndex()[name]
 	}
@@ -175,6 +172,7 @@ func WikiLinkPreprocessor(markdown string, docPath string) string {
 // mirroring Obsidian's shortest-path name resolution.
 func buildSlugIndex() map[string]string {
 	index := make(map[string]string)
+	documentsRoot := DocumentsRoot()
 	filepath.WalkDir(documentsRoot, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || d.Name() != "document.md" {
 			return nil

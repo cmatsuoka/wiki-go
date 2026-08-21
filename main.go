@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,7 +24,7 @@ func main() {
 	flag.Parse()
 
 	config.ConfigFilePath = *configfilepath
-	
+
 	// Fix broken config file if it exists (from previous bug)
 	if err := migration.FixBrokenConfig(config.ConfigFilePath); err != nil {
 		logger.Warn("Failed to fix broken config: %v", err)
@@ -45,6 +45,7 @@ func main() {
 	// :::stats recent=N::: formats edit times in the configured zone
 	// (consistent with formatTime used elsewhere in templates).
 	goldext.SetWikiTimezone(cfg.Wiki.Timezone)
+	goldext.ConfigureContentPaths(cfg.Wiki.RootDir, cfg.Wiki.DocumentsDir)
 
 	// Apply log level from config
 	logger.Init(cfg.Wiki.LogLevel)
@@ -88,7 +89,7 @@ func main() {
 
 func GetEnvString(name, defaultvalue string) string {
 	value, ok := os.LookupEnv(name)
-	if ! ok {
+	if !ok {
 		return defaultvalue
 	}
 	return value
