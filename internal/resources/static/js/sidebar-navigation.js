@@ -54,6 +54,8 @@
         const navItems = document.querySelector('.nav-items');
         if (!navItems) return;
 
+        const alwaysOpen = navItems.dataset.alwaysOpen === 'true';
+
         // Event delegation so it keeps working after refreshSidebar() re-renders the nav
         navItems.addEventListener('click', function(e) {
             const arrow = e.target.closest('.nav-arrow');
@@ -64,6 +66,26 @@
 
             const navItem = arrow.closest('.nav-item');
             if (!navItem) return;
+
+            if (alwaysOpen) {
+                // Preserve behavior where the arrow was inside the link: clicking
+                // the arrow navigates to the directory page rather than toggling.
+                const link = navItem.querySelector(':scope > .nav-item-header > a');
+                if (!link || !link.href) return;
+
+                // Approximate native anchor semantics for modifier / middle
+                // clicks. Programmatic MouseEvents don't reliably honor
+                // modifier flags, so open a new tab explicitly instead.
+                const openInNewTab = e.ctrlKey || e.metaKey || e.button === 1;
+                if (openInNewTab) {
+                    window.open(link.href, '_blank');
+                } else if (e.shiftKey) {
+                    window.open(link.href, '_blank', 'noopener');
+                } else {
+                    window.location.href = link.href;
+                }
+                return;
+            }
 
             const isOpen = navItem.classList.toggle('open');
             arrow.setAttribute('aria-expanded', isOpen);
@@ -83,7 +105,15 @@
     }
 
     function saveNavState() {
-        if (!sidebar) return;
+        const navItems = sidebar ? sidebar.querySelector('.nav-items') : null;
+        if (!navItems) return;
+
+        const alwaysOpen = navItems.dataset.alwaysOpen === 'true';
+        if (alwaysOpen) {
+            // When all directories are always expanded, there is no user
+            // collapse/expand state to persist.
+            return;
+        }
 
         let state = {};
         try {
@@ -92,7 +122,7 @@
             state = {};
         }
 
-        sidebar.querySelectorAll('.nav-item.directory').forEach(item => {
+        navItems.querySelectorAll('.nav-item.directory').forEach(item => {
             const path = navItemPath(item);
             if (!path) return;
 
@@ -120,6 +150,10 @@
             : container.querySelector('.nav-items');
         const alwaysOpen = navItems && navItems.dataset.alwaysOpen === 'true';
 
+        // In always-open mode, the server renders every directory as expanded.
+        // Don't touch anything so the old behavior is preserved.
+        if (alwaysOpen) return;
+
         let state = {};
         try {
             state = JSON.parse(sessionStorage.getItem(NAV_STATE_STORAGE_KEY) || '{}');
@@ -139,8 +173,6 @@
             } else if (path && state.hasOwnProperty(path)) {
                 // Honor explicit expand/collapse choices made by the user.
                 isOpen = state[path];
-            } else if (alwaysOpen) {
-                isOpen = true;
             } else {
                 // First visit to this directory: keep it collapsed.
                 isOpen = false;
