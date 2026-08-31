@@ -169,46 +169,86 @@ html, body {
     border-radius: 4px;
 }
 
+.nav-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
 .nav-item.directory {
     font-weight: 600;
     margin-top: 4px;
 }
 
-.nav-item.active > a {
-    color: var(--primary-color);
+.nav-item.active > .nav-item-header {
     background-color: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+.nav-item.active > .nav-item-header > a {
+    color: var(--primary-color);
 }
 
 .nav-children {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 2px;
     margin-top: 2px;
     border-left: 2px solid var(--border-color);
 }
 
+/* Show children when the parent nav item is expanded */
+.nav-item.open > .nav-children {
+    display: flex;
+}
+
 .nav-item a {
     color: var(--text-color);
     text-decoration: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding: 4px 8px;
-    border-radius: 4px;
     transition: all 0.2s ease;
     position: relative;
-    gap: 6px;
+    flex: 1;
     unicode-bidi: plaintext;
 }
 
-.nav-item a:hover {
-    color: var(--primary-hover);
+.nav-item-header:hover {
     background-color: var(--hover-bg);
+    color: var(--primary-hover);
+}
+
+.nav-item-header:hover > a {
+    color: inherit;
+}
+
+.nav-item.active > .nav-item-header:hover {
+    color: var(--primary-color);
+}
+
+.nav-item.active > .nav-item-header > a:hover {
+    color: var(--primary-color);
 }
 
 /* Arrow indicator */
 .nav-arrow {
-    display: inline-block;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    width: 26px;
+    height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+.nav-arrow::before {
+    content: '';
     width: 0;
     height: 0;
     border: solid currentColor;
@@ -219,8 +259,8 @@ html, body {
     transition: transform 0.2s ease;
 }
 
-/* Rotate arrow down when directory is expanded (active) */
-.nav-item.active > a .nav-arrow, .nav-item.open > a .nav-arrow {
+/* Rotate arrow down when directory is expanded */
+.nav-item.open > .nav-item-header .nav-arrow::before {
     transform: rotate(45deg);
 }
 

@@ -5,6 +5,9 @@
 
     // ========== MODULE STATE ==========
     let hamburger, sidebar, content, body;
+
+    // Storage key for persisting sidebar directory states
+    const NAV_STATE_STORAGE_KEY = 'wikiGo.sidebarNavState';
     
     // Touch gesture state
     let touchStartX = 0, touchEndX = 0;
@@ -36,9 +39,150 @@
         initHamburgerMenu();
         initClickOutside();
         initSidebarLinks();
+        initNavExpandCollapse();
+        applyNavState();
         initTouchGestures();
         scrollActiveIntoView();
+
+        // Persist state before the page unloads (handles all navigation paths)
+        window.addEventListener('pagehide', saveNavState);
     });
+
+    // ========== NAV EXPAND/COLLAPSE ==========
+
+    function initNavExpandCollapse() {
+        const navItems = document.querySelector('.nav-items');
+        if (!navItems) return;
+
+        const alwaysOpen = navItems.dataset.alwaysOpen === 'true';
+
+        // Event delegation so it keeps working after refreshSidebar() re-renders the nav
+        navItems.addEventListener('click', function(e) {
+            const arrow = e.target.closest('.nav-arrow');
+            if (!arrow) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const navItem = arrow.closest('.nav-item');
+            if (!navItem) return;
+
+            if (alwaysOpen) {
+                // Preserve behavior where the arrow was inside the link: clicking
+                // the arrow navigates to the directory page rather than toggling.
+                const link = navItem.querySelector(':scope > .nav-item-header > a');
+                if (!link || !link.href) return;
+
+                // Approximate native anchor semantics for modifier / middle
+                // clicks. Programmatic MouseEvents don't reliably honor
+                // modifier flags, so open a new tab explicitly instead.
+                const openInNewTab = e.ctrlKey || e.metaKey || e.button === 1;
+                if (openInNewTab) {
+                    window.open(link.href, '_blank');
+                } else if (e.shiftKey) {
+                    window.open(link.href, '_blank', 'noopener');
+                } else {
+                    window.location.href = link.href;
+                }
+                return;
+            }
+
+            const isOpen = navItem.classList.toggle('open');
+            arrow.setAttribute('aria-expanded', isOpen);
+            saveNavState();
+        });
+    }
+
+    // ========== NAV STATE PERSISTENCE ==========
+
+    function navItemPath(item) {
+        const link = item.querySelector(':scope > .nav-item-header > a');
+        if (!link) return null;
+
+        // Use pathname to get a consistent relative path from the root
+        // This avoids issues with absolute vs relative URLs
+        return new URL(link.href, window.location.origin).pathname;
+    }
+
+    function saveNavState() {
+        const navItems = sidebar ? sidebar.querySelector('.nav-items') : null;
+        if (!navItems) return;
+
+        const alwaysOpen = navItems.dataset.alwaysOpen === 'true';
+        if (alwaysOpen) {
+            // When all directories are always expanded, there is no user
+            // collapse/expand state to persist.
+            return;
+        }
+
+        let state = {};
+        try {
+            state = JSON.parse(sessionStorage.getItem(NAV_STATE_STORAGE_KEY) || '{}');
+        } catch (e) {
+            state = {};
+        }
+
+        navItems.querySelectorAll('.nav-item.directory').forEach(item => {
+            const path = navItemPath(item);
+            if (!path) return;
+
+            // Don't persist the forced-open state of the active page's
+            // ancestors; that state is derived from the current page and
+            // should not be treated as a user's explicit choice.
+            if (item.querySelector('.nav-item.active') !== null) return;
+
+            state[path] = item.classList.contains('open');
+        });
+
+        try {
+            sessionStorage.setItem(NAV_STATE_STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+            // Ignore storage errors (e.g. private mode / quota)
+        }
+    }
+
+    function applyNavState(container) {
+        container = container || sidebar;
+        if (!container) return;
+
+        const navItems = container.classList && container.classList.contains('nav-items')
+            ? container
+            : container.querySelector('.nav-items');
+        const alwaysOpen = navItems && navItems.dataset.alwaysOpen === 'true';
+
+        // In always-open mode, the server renders every directory as expanded.
+        // Don't touch anything so the old behavior is preserved.
+        if (alwaysOpen) return;
+
+        let state = {};
+        try {
+            state = JSON.parse(sessionStorage.getItem(NAV_STATE_STORAGE_KEY) || '{}');
+        } catch (e) {
+            state = {};
+        }
+
+        container.querySelectorAll('.nav-item.directory').forEach(item => {
+            const path = navItemPath(item);
+            const hasActiveDescendant = item.querySelector('.nav-item.active') !== null;
+
+            let isOpen;
+            if (hasActiveDescendant) {
+                // The active page must always be visible: expand its ancestors
+                // regardless of any previously persisted collapse state.
+                isOpen = true;
+            } else if (path && state.hasOwnProperty(path)) {
+                // Honor explicit expand/collapse choices made by the user.
+                isOpen = state[path];
+            } else {
+                // First visit to this directory: keep it collapsed.
+                isOpen = false;
+            }
+
+            item.classList.toggle('open', isOpen);
+            const arrow = item.querySelector('.nav-arrow');
+            if (arrow) arrow.setAttribute('aria-expanded', String(isOpen));
+        });
+    }
 
     // ========== SIDEBAR CORE FUNCTIONS ==========
     
@@ -116,7 +260,13 @@
         if (!sidebar) return;
 
         sidebar.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', function() {
+            link.addEventListener('click', function(e) {
+                // Let the nav expand/collapse toggle handle arrow clicks
+                if (e.target.closest('.nav-arrow')) return;
+
+                // Persist all directory states before navigation
+                saveNavState();
+
                 // Close sidebar on mobile when link is clicked
                 if (window.innerWidth <= 768) {
                     closeSidebar();
@@ -424,6 +574,7 @@
                 if (navItems) {
                     navItems.innerHTML = newSidebar.innerHTML;
                     initSidebarLinks(); // Reinitialize click handlers
+                    applyNavState();    // Reapply persisted collapsed state
                 }
             }
         } catch (error) {
@@ -431,8 +582,18 @@
         }
     }
 
+    // Apply persisted state as early as possible when this script is loaded
+    // directly after the nav tree markup, so the tree is rendered in its final
+    // expanded/collapsed form before the browser paints.
+    (function applyNavStateEarly() {
+        const earlyNavItems = document.querySelector('.nav-items');
+        if (earlyNavItems) {
+            applyNavState(earlyNavItems);
+        }
+    })();
+
     // ========== PUBLIC API ==========
-    
+
     window.SidebarNavigation = {
         toggleSidebar: toggleSidebar,
         openSidebar: openSidebar,
