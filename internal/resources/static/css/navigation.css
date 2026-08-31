@@ -215,6 +215,12 @@ html, body {
     unicode-bidi: plaintext;
 }
 
+.nav-item-header > a.with-nav-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
 .nav-item-header:hover {
     background-color: var(--hover-bg);
     color: var(--primary-hover);
@@ -256,6 +262,10 @@ html, body {
     padding: 4px;
     transform: rotate(-45deg);
     opacity: 0.6;
+}
+
+/* Animate only after persisted navigation state has been restored. */
+.nav-items.nav-state-ready .nav-arrow::before {
     transition: transform 0.2s ease;
 }
 

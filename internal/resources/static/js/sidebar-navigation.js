@@ -40,7 +40,7 @@
         initClickOutside();
         initSidebarLinks();
         initNavExpandCollapse();
-        applyNavState();
+        hydrateNavState();
         initTouchGestures();
         scrollActiveIntoView();
 
@@ -54,11 +54,9 @@
         const navItems = document.querySelector('.nav-items');
         if (!navItems) return;
 
-        const alwaysOpen = navItems.dataset.alwaysOpen === 'true';
-
         // Event delegation so it keeps working after refreshSidebar() re-renders the nav
         navItems.addEventListener('click', function(e) {
-            const arrow = e.target.closest('.nav-arrow');
+            const arrow = e.target.closest('button.nav-arrow');
             if (!arrow) return;
 
             e.preventDefault();
@@ -66,26 +64,6 @@
 
             const navItem = arrow.closest('.nav-item');
             if (!navItem) return;
-
-            if (alwaysOpen) {
-                // Preserve behavior where the arrow was inside the link: clicking
-                // the arrow navigates to the directory page rather than toggling.
-                const link = navItem.querySelector(':scope > .nav-item-header > a');
-                if (!link || !link.href) return;
-
-                // Approximate native anchor semantics for modifier / middle
-                // clicks. Programmatic MouseEvents don't reliably honor
-                // modifier flags, so open a new tab explicitly instead.
-                const openInNewTab = e.ctrlKey || e.metaKey || e.button === 1;
-                if (openInNewTab) {
-                    window.open(link.href, '_blank');
-                } else if (e.shiftKey) {
-                    window.open(link.href, '_blank', 'noopener');
-                } else {
-                    window.location.href = link.href;
-                }
-                return;
-            }
 
             const isOpen = navItem.classList.toggle('open');
             arrow.setAttribute('aria-expanded', isOpen);
@@ -184,6 +162,24 @@
         });
     }
 
+    function hydrateNavState(container) {
+        const target = container || sidebar;
+        if (!target) return;
+
+        const navItems = target.classList && target.classList.contains('nav-items')
+            ? target
+            : target.querySelector('.nav-items');
+        if (!navItems) return;
+
+        // State restoration is not a user interaction, so suppress arrow
+        // transitions until the final expanded/collapsed state is in place.
+        navItems.classList.remove('nav-state-ready');
+        applyNavState(target);
+        requestAnimationFrame(function() {
+            navItems.classList.add('nav-state-ready');
+        });
+    }
+
     // ========== SIDEBAR CORE FUNCTIONS ==========
     
     function toggleSidebar() {
@@ -262,7 +258,7 @@
         sidebar.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', function(e) {
                 // Let the nav expand/collapse toggle handle arrow clicks
-                if (e.target.closest('.nav-arrow')) return;
+                if (e.target.closest('button.nav-arrow')) return;
 
                 // Persist all directory states before navigation
                 saveNavState();
@@ -574,7 +570,7 @@
                 if (navItems) {
                     navItems.innerHTML = newSidebar.innerHTML;
                     initSidebarLinks(); // Reinitialize click handlers
-                    applyNavState();    // Reapply persisted collapsed state
+                    hydrateNavState(navItems); // Reapply state without transition jitter
                 }
             }
         } catch (error) {
@@ -588,7 +584,7 @@
     (function applyNavStateEarly() {
         const earlyNavItems = document.querySelector('.nav-items');
         if (earlyNavItems) {
-            applyNavState(earlyNavItems);
+            hydrateNavState(earlyNavItems);
         }
     })();
 
