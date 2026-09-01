@@ -1,0 +1,10 @@
+{{define "chapter-links"}}
+{{if .TableOfContents}}
+<aside class="chapter-links" aria-label="On this page">
+    <div class="chapter-links-header">On this page</div>
+    <div class="chapter-links-body">
+        {{.TableOfContents}}
+    </div>
+</aside>
+{{end}}
+{{end}}

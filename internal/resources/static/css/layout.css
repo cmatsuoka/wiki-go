@@ -14,6 +14,59 @@
     flex-direction: column;
 }
 
+/* Right-side chapter links panel */
+.chapter-links {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--chapter-links-width);
+    height: 100vh;
+    padding: 100px 16px 32px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    background-color: var(--bg-color);
+    border-left: 1px solid var(--border-color);
+    z-index: 80;
+}
+
+.chapter-links-header {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.chapter-links .wiki-toc {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.chapter-links .toc-title {
+    display: none;
+}
+
+.chapter-links .toc-list {
+    padding-left: 0;
+}
+
+.chapter-links .toc-list li {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.chapter-links .toc-list a {
+    color: var(--text-color);
+    text-decoration: none;
+    display: block;
+}
+
+.chapter-links .toc-list a:hover {
+    color: var(--primary-color);
+}
+
 /* Class to allow full width content when needed */
 .full-width-content {
     max-width: none !important;
@@ -90,6 +143,27 @@
     content: "📄";
     margin-right: 8px;
     font-size: 14px;
+}
+
+/* Wide screens: leave room for the chapter-links panel */
+@media (min-width: 1400px) {
+    .content {
+        width: calc(100% - var(--sidebar-width) - var(--chapter-links-width));
+    }
+}
+
+/* Medium screens and below: hide the chapter-links panel */
+@media (max-width: 1200px) {
+    .chapter-links {
+        display: none;
+    }
+}
+
+/* Narrow screens (just below the mobile breakpoint): make sure content fills the gap */
+@media (max-width: 950px) {
+    .content {
+        width: calc(100% - var(--sidebar-width));
+    }
 }
 
 /* ---------- Responsive styles ---------- */

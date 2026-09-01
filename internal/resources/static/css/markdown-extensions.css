@@ -361,4 +361,9 @@ mark {
     .toc-list a {
         color: black !important;
     }
+
+    /* Right-side chapter links panel */
+    .chapter-links {
+        display: none !important;
+    }
 }

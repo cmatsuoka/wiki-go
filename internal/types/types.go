@@ -55,4 +55,5 @@ type PageData struct {
 	DocumentLayout     string             // Document layout type from frontmatter (e.g., "kanban")
 	IsEditMode         bool               // Whether page is in edit mode (separate edit page architecture)
 	RawContent         string             // Raw markdown content with frontmatter for edit mode
+	TableOfContents    template.HTML      // Outline of the current page for the right-side chapter links panel
 }

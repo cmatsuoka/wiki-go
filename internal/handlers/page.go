@@ -14,6 +14,7 @@ import (
 	"wiki-go/internal/comments"
 	"wiki-go/internal/config"
 	"wiki-go/internal/frontmatter"
+	"wiki-go/internal/goldext"
 	"wiki-go/internal/i18n"
 	"wiki-go/internal/types"
 	"wiki-go/internal/utils"
@@ -115,7 +116,8 @@ func PageHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	var content template.HTML
 	var lastModified time.Time
 	var dirContent template.HTML
-	var rawContent string // Raw markdown content for edit mode
+	var rawContent string     // Raw markdown content for edit mode
+	var tocHTML template.HTML // Right-side chapter links outline
 
 	// Look for document.md in the directory
 	docPath := filepath.Join(fsPath, "document.md")
@@ -134,7 +136,7 @@ func PageHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 		}
 
 		// Parse frontmatter to get document layout
-		metadata, _, hasFrontmatter := frontmatter.Parse(string(mdContent))
+		metadata, contentWithoutFrontmatter, hasFrontmatter := frontmatter.Parse(string(mdContent))
 		documentLayout := ""
 		if hasFrontmatter {
 			documentLayout = metadata.Layout
@@ -142,12 +144,24 @@ func PageHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 
 		// Use the document path for rendering to handle local file references
 		content = template.HTML(utils.RenderMarkdownWithPath(string(mdContent), decodedPath))
-		
+
+		// Build the right-side chapter links outline from the frontmatter-stripped
+		// markdown (the same content that gets rendered) so heading IDs match those
+		// produced during rendering and frontmatter content is not collected as
+		// phantom headings. Skip for edit mode, non-outline layouts, and pages that
+		// already embed an inline [toc] marker.
+		if !isEditMode && documentLayout != "kanban" && documentLayout != "links" && !containsInlineTOC(contentWithoutFrontmatter) {
+			headings := goldext.CollectHeadings(contentWithoutFrontmatter)
+			if len(headings) > 0 {
+				tocHTML = template.HTML(goldext.GenerateTOCHTML(headings))
+			}
+		}
+
 		// If content is empty but document exists, ensure we have something truthy for template conditions
 		if strings.TrimSpace(string(content)) == "" {
 			content = template.HTML(" ") // Single space to make it truthy but effectively empty
 		}
-		
+
 		lastModified = docInfo.ModTime()
 
 		// Update the document layout in the page data
@@ -265,9 +279,37 @@ func PageHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 		DocumentLayout:     navItem.DocumentLayout,
 		IsEditMode:         isEditMode,
 		RawContent:         rawContent, // Pass raw markdown content for edit mode
+		TableOfContents:    tocHTML,
 	}
 
 	renderTemplate(w, data)
+}
+
+// containsInlineTOC reports whether the markdown source contains a standalone
+// [toc] marker outside of fenced code blocks. It mirrors the detection logic
+// used by goldext.TocPreprocessor so the right-side outline can be suppressed
+// when the author already embedded an inline table of contents.
+func containsInlineTOC(markdown string) bool {
+	inCodeBlock := false
+	for _, line := range strings.Split(markdown, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+
+		// Mirror TocPreprocessor: check for [toc] outside of inline code
+		segments := strings.Split(line, "`")
+		for j, segment := range segments {
+			if j%2 == 0 && strings.Contains(segment, "[toc]") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // generateBreadcrumbs creates a breadcrumb trail from a path
