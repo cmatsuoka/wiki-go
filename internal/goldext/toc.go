@@ -33,7 +33,7 @@ func CollectHeadings(markdown string) []Heading {
 	for _, line := range lines {
 		// Check if this line starts or ends a code block
 		trimmedLine := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmedLine, "```") || strings.HasPrefix(trimmedLine, "~~~") {
+		if isCodeBlockMarker(trimmedLine) {
 			inCodeBlock = !inCodeBlock
 			continue
 		}
@@ -106,7 +106,7 @@ func TocPreprocessor(markdown string, _ string) string {
 	for _, line := range lines {
 		// Check if this line starts or ends a code block
 		trimmedLine := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmedLine, "```") || strings.HasPrefix(trimmedLine, "~~~") {
+		if isCodeBlockMarker(trimmedLine) {
 			inCodeBlock = !inCodeBlock
 			result = append(result, line)
 			continue
@@ -166,6 +166,11 @@ func TocPreprocessor(markdown string, _ string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// isCodeBlockMarker checks for fenced code block markers.
+func isCodeBlockMarker(line string) bool {
+	return strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")
 }
 
 // makeSlug creates a URL-friendly slug from text
