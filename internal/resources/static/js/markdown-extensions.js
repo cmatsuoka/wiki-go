@@ -72,11 +72,14 @@ document.addEventListener('DOMContentLoaded', function() {
             updateChapterLinksState(!chapterLinksPanel.classList.contains('retracted'));
         });
 
-        // Restore preference on page load (default to expanded). Use the two-step
+        // Restore preference on page load. On narrow screens the panel defaults to
+        // retracted so it does not cover the page content. Use the two-step
         // transition trick to ensure the browser actually animates the retraction
         // when the page first renders.
         try {
-            const savedRetracted = sessionStorage.getItem('chapter-links-retracted') === 'true';
+            const saved = sessionStorage.getItem('chapter-links-retracted');
+            const isNarrow = window.matchMedia('(max-width: 1200px)').matches;
+            const savedRetracted = saved === null ? isNarrow : saved === 'true';
             if (savedRetracted && !chapterLinksPanel.classList.contains('retracted')) {
                 // Set the retracted state without animation first, then enable
                 // the transition class so subsequent toggles animate smoothly.

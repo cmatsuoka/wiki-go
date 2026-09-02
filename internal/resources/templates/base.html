@@ -43,7 +43,12 @@
     <script src="/static/js/theme-manager.js?={{getVersion}}"></script>
     <script>
         try {
-            if (sessionStorage.getItem('chapter-links-retracted') === 'true') {
+            // On narrow screens default the chapter-links panel to retracted so it
+            // does not cover the page content. Otherwise respect the stored preference.
+            const isNarrow = window.matchMedia('(max-width: 1200px)').matches;
+            const saved = sessionStorage.getItem('chapter-links-retracted');
+            const retracted = saved === null ? isNarrow : saved === 'true';
+            if (retracted) {
                 document.documentElement.classList.add('chapter-links-retracted');
             }
         } catch (e) {

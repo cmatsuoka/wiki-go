@@ -207,9 +207,49 @@ html.chapter-links-retracted .chapter-links + .chapter-links-toggle:hover .chapt
     }
 }
 
-/* Medium screens and below: hide the chapter-links panel */
+/* Medium screens and below: convert chapter-links into a slide-out drawer */
 @media (max-width: 1200px) {
     .chapter-links {
+        top: 0;
+        width: min(var(--chapter-links-width), 85vw);
+        padding-top: 60px;
+        z-index: 1002; /* Above sidebar overlay so it can be opened independently */
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .chapter-links.retracted {
+        transform: translateX(100%);
+    }
+
+    /* The drawer is hidden off-canvas by default on mobile. */
+    html.chapter-links-retracted .chapter-links {
+        transform: translateX(100%);
+    }
+
+    /* Mobile toggle matches the desktop tab style: attached to the panel,
+       slightly below the top of the screen, with rounded corners. */
+    .chapter-links-toggle {
+        top: 100px;
+        right: var(--chapter-links-width);
+        width: 28px;
+        height: 40px;
+        border: 1px solid var(--border-color);
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        z-index: 1003;
+        background: var(--bg-color);
+        transition: right 0.3s ease;
+    }
+
+    .chapter-links.retracted + .chapter-links-toggle,
+    html.chapter-links-retracted .chapter-links + .chapter-links-toggle {
+        right: 0;
+        border-radius: 8px 0 0 8px;
+        border: 1px solid var(--border-color);
+        border-right: none;
+    }
+
+    .chapter-links-toggle-tooltip {
         display: none;
     }
 }
