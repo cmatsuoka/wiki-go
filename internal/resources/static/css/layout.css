@@ -43,10 +43,34 @@
     transition: none !important;
 }
 
-.chapter-links.collapsed {
+.chapter-links.retracted {
     transform: translateX(var(--chapter-links-width));
     border-left: none;
     overflow: visible;
+}
+
+/* Pre-first-paint retract state applied to <html> by an inline script so the
+ * panel renders retracted without waiting for markdown-extensions.js. */
+html.chapter-links-retracted .chapter-links {
+    transform: translateX(var(--chapter-links-width));
+    border-left: none;
+    overflow: visible;
+}
+
+html.chapter-links-retracted .chapter-links .chapter-links-body {
+    opacity: 0;
+    pointer-events: none;
+}
+
+html.chapter-links-retracted .chapter-links + .chapter-links-toggle {
+    right: 0;
+    border-radius: 8px 0 0 8px;
+    border: 1px solid var(--border-color);
+    border-right: none;
+}
+
+html.chapter-links-retracted .chapter-links + .chapter-links-toggle:hover .chapter-links-toggle-tooltip {
+    opacity: 1;
 }
 
 .chapter-links-body {
@@ -59,7 +83,7 @@
     transition: opacity 0.25s ease;
 }
 
-.chapter-links.collapsed .chapter-links-body {
+.chapter-links.retracted .chapter-links-body {
     opacity: 0;
     pointer-events: none;
 }
@@ -87,7 +111,7 @@
     transition: right 0.3s ease;
 }
 
-.chapter-links.collapsed + .chapter-links-toggle {
+.chapter-links.retracted + .chapter-links-toggle {
     right: 0;
     border-radius: 8px 0 0 8px;
     border: 1px solid var(--border-color);
@@ -122,7 +146,7 @@
     transition: opacity 0.2s ease;
 }
 
-.chapter-links.collapsed + .chapter-links-toggle:hover .chapter-links-toggle-tooltip {
+.chapter-links.retracted + .chapter-links-toggle:hover .chapter-links-toggle-tooltip {
     opacity: 1;
 }
 
@@ -176,8 +200,9 @@
         width: calc(100% - var(--sidebar-width) - var(--chapter-links-width));
     }
 
-    .chapter-links.collapsed ~ .content,
-    body:has(.chapter-links.collapsed) .content {
+    .chapter-links.retracted ~ .content,
+    body:has(.chapter-links.retracted) .content,
+    html.chapter-links-retracted .content {
         width: calc(100% - var(--sidebar-width));
     }
 }

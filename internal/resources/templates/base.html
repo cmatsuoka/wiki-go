@@ -41,6 +41,15 @@
     <script src="/static/js/debug-toggle.js?={{getVersion}}"></script>
     <script src="/static/js/utilities.js?={{getVersion}}"></script>
     <script src="/static/js/theme-manager.js?={{getVersion}}"></script>
+    <script>
+        try {
+            if (sessionStorage.getItem('chapter-links-retracted') === 'true') {
+                document.documentElement.classList.add('chapter-links-retracted');
+            }
+        } catch (e) {
+            // Ignore storage errors
+        }
+    </script>
     <!-- File extensions configuration -->
     <script src="/static/js/file-extensions.js?={{getVersion}}"></script>
     <!-- Base styles -->

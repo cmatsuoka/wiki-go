@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Chapter-links panel collapse/extend toggle
+    // Chapter-links panel retract/expand toggle
     const chapterLinksPanel = document.querySelector('.chapter-links');
     const chapterLinksToggle = document.querySelector('.chapter-links-toggle');
 
@@ -39,45 +39,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const chapterLinksBody = chapterLinksPanel.querySelector('.chapter-links-body');
         const toggleText = chapterLinksToggle.querySelector('.chapter-links-toggle-text');
 
-        function updateChapterLinksState(forceCollapsed) {
-            const isCollapsed = typeof forceCollapsed === 'boolean'
-                ? forceCollapsed
-                : chapterLinksPanel.classList.toggle('collapsed');
+        function updateChapterLinksState(forceRetracted) {
+            const isRetracted = typeof forceRetracted === 'boolean'
+                ? forceRetracted
+                : !chapterLinksPanel.classList.contains('retracted');
 
-            chapterLinksPanel.classList.toggle('collapsed', isCollapsed);
+            chapterLinksPanel.classList.toggle('retracted', isRetracted);
+            document.documentElement.classList.toggle('chapter-links-retracted', isRetracted);
 
-            chapterLinksToggle.setAttribute('aria-expanded', String(!isCollapsed));
-            chapterLinksToggle.setAttribute('aria-label', isCollapsed ? 'Expand chapter links' : 'Collapse chapter links');
+            chapterLinksToggle.setAttribute('aria-expanded', String(!isRetracted));
+            chapterLinksToggle.setAttribute('aria-label', isRetracted ? 'Expand chapter links' : 'Retract chapter links');
 
             if (toggleText) {
-                toggleText.textContent = isCollapsed ? '<<' : '>>';
+                toggleText.textContent = isRetracted ? '<<' : '>>';
             }
 
             if (chapterLinksBody) {
-                chapterLinksBody.setAttribute('aria-hidden', String(isCollapsed));
+                chapterLinksBody.setAttribute('aria-hidden', String(isRetracted));
             }
 
             // Persist preference
             try {
-                localStorage.setItem('chapter-links-collapsed', String(isCollapsed));
+                sessionStorage.setItem('chapter-links-retracted', String(isRetracted));
             } catch (e) {
                 // Ignore storage errors
             }
 
-            return isCollapsed;
+            return isRetracted;
         }
 
         chapterLinksToggle.addEventListener('click', function() {
-            updateChapterLinksState();
+            updateChapterLinksState(!chapterLinksPanel.classList.contains('retracted'));
         });
 
         // Restore preference on page load (default to expanded). Use the two-step
         // transition trick to ensure the browser actually animates the retraction
         // when the page first renders.
         try {
-            const savedCollapsed = localStorage.getItem('chapter-links-collapsed') === 'true';
-            if (savedCollapsed && !chapterLinksPanel.classList.contains('collapsed')) {
-                // Set the collapsed state without animation first, then enable
+            const savedRetracted = sessionStorage.getItem('chapter-links-retracted') === 'true';
+            if (savedRetracted && !chapterLinksPanel.classList.contains('retracted')) {
+                // Set the retracted state without animation first, then enable
                 // the transition class so subsequent toggles animate smoothly.
                 chapterLinksPanel.classList.add('no-animate');
                 updateChapterLinksState(true);
