@@ -21,12 +21,105 @@
     right: 0;
     width: var(--chapter-links-width);
     height: 100vh;
-    padding: 100px 16px 32px;
+    padding: 100px 0 32px 16px;
     box-sizing: border-box;
-    overflow-y: auto;
+    overflow: visible;
     background-color: var(--bg-color);
     border-left: 1px solid var(--border-color);
+    border-radius: 0 0 0 8px;
     z-index: 80;
+    transition: width 0.3s ease, transform 0.3s ease;
+}
+
+/* Suppress transitions during state restoration so the page renders in its
+ * final (expanded or retracted) form without a visible animation. */
+.chapter-links.no-animate {
+    transition: none !important;
+}
+
+.chapter-links.no-animate .chapter-links-body {
+    transition: none !important;
+}
+
+.chapter-links.collapsed {
+    width: 0;
+    padding-left: 0;
+    border-left: none;
+    overflow: visible;
+    transform: translateX(0);
+}
+
+.chapter-links-body {
+    padding-right: 16px;
+    background: transparent;
+    opacity: 1;
+    max-height: calc(100vh - 132px);
+    overflow-y: auto;
+    transition: opacity 0.25s ease;
+}
+
+.chapter-links.collapsed .chapter-links-body {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.chapter-links-toggle {
+    position: absolute;
+    top: 100px;
+    left: 0;
+    width: 28px;
+    height: 40px;
+    transform: translateX(-100%);
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 0;
+    z-index: 81;
+}
+
+.chapter-links.collapsed .chapter-links-toggle {
+    border-radius: 8px 0 0 8px;
+    border: 1px solid var(--border-color);
+    border-right: none;
+}
+
+.chapter-links-toggle:hover {
+    color: var(--primary-color);
+    background-color: var(--hover-bg);
+}
+
+.chapter-links-toggle-text {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+/* Tooltip label shown when the panel is retracted */
+.chapter-links-toggle-tooltip {
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    transform: translateY(-50%) translateX(-6px);
+    background: var(--bg-color);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.chapter-links.collapsed .chapter-links-toggle:hover .chapter-links-toggle-tooltip {
+    opacity: 1;
 }
 
 .chapter-links-header {
@@ -35,6 +128,7 @@
     text-transform: uppercase;
     color: var(--text-muted);
     margin-bottom: 12px;
+    padding-right: 16px;
 }
 
 .chapter-links .wiki-toc {
@@ -65,6 +159,25 @@
 
 .chapter-links .toc-list a:hover {
     color: var(--primary-color);
+}
+
+/* Wide screens: leave room for the chapter-links panel */
+@media (min-width: 1400px) {
+    .content {
+        width: calc(100% - var(--sidebar-width) - var(--chapter-links-width));
+    }
+
+    .chapter-links.collapsed ~ .content,
+    body:has(.chapter-links.collapsed) .content {
+        width: calc(100% - var(--sidebar-width));
+    }
+}
+
+/* Medium screens and below: hide the chapter-links panel */
+@media (max-width: 1200px) {
+    .chapter-links {
+        display: none;
+    }
 }
 
 /* Class to allow full width content when needed */
@@ -143,20 +256,6 @@
     content: "📄";
     margin-right: 8px;
     font-size: 14px;
-}
-
-/* Wide screens: leave room for the chapter-links panel */
-@media (min-width: 1400px) {
-    .content {
-        width: calc(100% - var(--sidebar-width) - var(--chapter-links-width));
-    }
-}
-
-/* Medium screens and below: hide the chapter-links panel */
-@media (max-width: 1200px) {
-    .chapter-links {
-        display: none;
-    }
 }
 
 /* Narrow screens (just below the mobile breakpoint): make sure content fills the gap */
