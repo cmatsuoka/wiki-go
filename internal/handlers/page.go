@@ -148,12 +148,11 @@ func PageHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 		// Build the right-side chapter links outline from the frontmatter-stripped
 		// markdown (the same content that gets rendered) so heading IDs match those
 		// produced during rendering and frontmatter content is not collected as
-		// phantom headings. Skip for edit mode, non-outline layouts, and pages that
-		// already embed an inline [toc] marker.
-		if !isEditMode && documentLayout != "kanban" && documentLayout != "links" && !containsInlineTOC(contentWithoutFrontmatter) {
-			headings := goldext.CollectHeadings(contentWithoutFrontmatter)
-			if len(headings) > 0 {
-				tocHTML = template.HTML(goldext.GenerateTOCHTML(headings))
+		// phantom headings. Skip for edit mode and non-outline layouts.
+		if !isEditMode && documentLayout != "kanban" && documentLayout != "links" {
+			result := goldext.CollectHeadingsResult(contentWithoutFrontmatter)
+			if len(result.Headings) > 0 {
+				tocHTML = template.HTML(goldext.GenerateTOCHTML(result.Headings))
 			}
 		}
 
@@ -283,33 +282,6 @@ func PageHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	}
 
 	renderTemplate(w, data)
-}
-
-// containsInlineTOC reports whether the markdown source contains a standalone
-// [toc] marker outside of fenced code blocks. It mirrors the detection logic
-// used by goldext.TocPreprocessor so the right-side outline can be suppressed
-// when the author already embedded an inline table of contents.
-func containsInlineTOC(markdown string) bool {
-	inCodeBlock := false
-	for _, line := range strings.Split(markdown, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			inCodeBlock = !inCodeBlock
-			continue
-		}
-		if inCodeBlock {
-			continue
-		}
-
-		// Mirror TocPreprocessor: check for [toc] outside of inline code
-		segments := strings.Split(line, "`")
-		for j, segment := range segments {
-			if j%2 == 0 && strings.Contains(segment, "[toc]") {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // generateBreadcrumbs creates a breadcrumb trail from a path

@@ -12,6 +12,8 @@ import (
 
 	"wiki-go/internal/auth"
 	"wiki-go/internal/config"
+	"wiki-go/internal/frontmatter"
+	"wiki-go/internal/goldext"
 	"wiki-go/internal/i18n"
 	"wiki-go/internal/logger"
 	"wiki-go/internal/types"
@@ -578,12 +580,24 @@ func HomeHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 		userRole = session.Role
 	}
 
-	// Render the markdown content
-	renderedContent := template.HTML(utils.RenderMarkdown(string(content)))
-	
+	// Render the markdown content with path-aware processing for local links/images.
+	renderedContent := template.HTML(utils.RenderMarkdownWithPath(string(content), "pages/home"))
+
 	// If content is empty but home document exists, ensure we have something truthy for template conditions
 	if strings.TrimSpace(string(renderedContent)) == "" {
 		renderedContent = template.HTML(" ") // Single space to make it truthy but effectively empty
+	}
+
+	// Build the right-side chapter links outline from the frontmatter-stripped
+	// markdown so heading IDs match those produced during rendering. Skip for
+	// edit mode.
+	var tocHTML template.HTML
+	if !isEditMode {
+		_, contentWithoutFrontmatter, _ := frontmatter.Parse(string(content))
+		result := goldext.CollectHeadingsResult(contentWithoutFrontmatter)
+		if len(result.Headings) > 0 {
+			tocHTML = template.HTML(goldext.GenerateTOCHTML(result.Headings))
+		}
 	}
 
 	// Render the page
@@ -600,6 +614,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 		DocPath:            "pages/home", // Special path for homepage
 		IsEditMode:         isEditMode,
 		RawContent:         rawContent,
+		TableOfContents:    tocHTML,
 	}
 
 	renderTemplate(w, data)

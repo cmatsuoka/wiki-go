@@ -19,16 +19,27 @@ type Heading struct {
 	ID    string
 }
 
-// CollectHeadings scans markdown for ATX headings outside of fenced code blocks
-// and returns them with stable, unique IDs.
-func CollectHeadings(markdown string) []Heading {
+// HeadingsResult bundles headings with the presence of an inline [toc] marker,
+// so callers that need both can get them from a single scan.
+type HeadingsResult struct {
+	Headings    []Heading
+	HasInlineTOC bool
+}
+
+// CollectHeadingsResult scans markdown for ATX headings outside of fenced code
+// blocks and returns them with stable, unique IDs. It also reports whether the
+// document contains a standalone [toc] marker outside of fenced code blocks and
+// inline code spans, so callers can avoid a separate scan.
+func CollectHeadingsResult(markdown string) HeadingsResult {
 	lines := strings.Split(markdown, "\n")
 	var headings []Heading
 
 	inCodeBlock := false
+	hasInlineTOC := false
 
 	// Track used IDs to avoid duplicates
 	usedIDs := make(map[string]bool)
+	tocMarker := regexp.MustCompile(`^\s*\[toc\]\s*$`)
 
 	for _, line := range lines {
 		// Check if this line starts or ends a code block
@@ -41,6 +52,21 @@ func CollectHeadings(markdown string) []Heading {
 		// Skip processing inside code blocks
 		if inCodeBlock {
 			continue
+		}
+
+		// Check for [toc] outside of inline code spans
+		if !hasInlineTOC {
+			if tocMarker.MatchString(trimmedLine) {
+				hasInlineTOC = true
+			} else {
+				segments := strings.Split(line, "`")
+				for j, segment := range segments {
+					if j%2 == 0 && strings.Contains(segment, "[toc]") {
+						hasInlineTOC = true
+						break
+					}
+				}
+			}
 		}
 
 		// Extract headings outside of code blocks
@@ -85,7 +111,15 @@ func CollectHeadings(markdown string) []Heading {
 		}
 	}
 
-	return headings
+	return HeadingsResult{Headings: headings, HasInlineTOC: hasInlineTOC}
+}
+
+// CollectHeadings scans markdown for ATX headings outside of fenced code blocks
+// and returns them with stable, unique IDs. For callers that also need to know
+// whether an inline [toc] marker is present, use CollectHeadingsResult instead
+// to avoid a second scan.
+func CollectHeadings(markdown string) []Heading {
+	return CollectHeadingsResult(markdown).Headings
 }
 
 // TocPreprocessor adds support for [toc] markers
@@ -97,7 +131,8 @@ func TocPreprocessor(markdown string, _ string) string {
 	var result []string
 
 	// Collect headings first to get stable IDs
-	headings := CollectHeadings(markdown)
+	headingsResult := CollectHeadingsResult(markdown)
+	headings := headingsResult.Headings
 	headingIdx := 0
 
 	inCodeBlock := false
@@ -128,6 +163,8 @@ func TocPreprocessor(markdown string, _ string) string {
 		// The ID is taken from the matching entry in `headings`, which is produced by
 		// CollectHeadings using the same line-by-line scan (same code-block toggling and
 		// headingRegex), so headingIdx stays aligned with the headings slice.
+		// The bounds check is cheap insurance: if the two scans ever diverge, skip
+		// the rewrite rather than panic with an out-of-range index.
 		matches := headingRegex.FindStringSubmatch(trimmedLine)
 		if matches != nil && headingIdx < len(headings) {
 			level := len(matches[1])
