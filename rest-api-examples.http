@@ -16,33 +16,24 @@
 ### Authentication
 
 #### Login
+# @name login
 POST {{ base_url }}/api/login
 Content-Type: application/json
 
 {
   "username": "{{ username }}",
   "password": "{{ password }}",
-  "keeploggedin" : false
+  "keepLoggedIn": false
 }
-
-### Store the login session
-@session = {{$login.response.headers['set-cookie']?.match(/session_token=([^;]+)/)[1]}}
 
 #### Check auth status
 GET {{ base_url }}/api/check-auth
-Cookie: session={{ session }}
 Accept: application/json
-
-#### Logout
-POST {{ base_url }}/api/logout
-Cookie: session={{ session }}
-Content-Type: application/json
 
 ### Profile
 
 #### Change password (wrong current password — expect 401)
 POST {{ base_url }}/api/password
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -52,7 +43,6 @@ Content-Type: application/json
 
 #### Change password (correct — expect 200)
 POST {{ base_url }}/api/password
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -62,13 +52,11 @@ Content-Type: application/json
 
 #### Change password via GET (expect 405)
 GET {{ base_url }}/api/password
-Cookie: session={{ session }}
 
 ### Documents
 
 #### Create document
 POST {{ base_url }}/api/document/create
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -82,19 +70,16 @@ Accept: text/html
 
 #### Get document source (Markdown)
 GET {{ base_url }}/api/source/{{ doc_path }}
-Cookie: session={{ session }}
 Accept: text/markdown
 
 #### Save document
 POST {{ base_url }}/api/save/{{ doc_path }}
-Cookie: session={{ session }}
 Content-Type: text/markdown
 
 {{ doc_body }}
 
 #### Rename document
 POST {{ base_url }}/api/document/move
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -105,7 +90,6 @@ Content-Type: application/json
 
 #### Move document
 POST {{ base_url }}/api/document/move
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -116,13 +100,11 @@ Content-Type: application/json
 
 #### Delete document
 DELETE {{ base_url }}/api/document/{{ doc_path }}
-Cookie: session={{ session }}
 
 ### Files
 
 #### Upload file (text example)
 POST {{ base_url }}/api/files/upload
-Cookie: session={{ session }}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -142,11 +124,9 @@ Accept: application/json
 
 #### Serve file
 GET {{ base_url }}/api/files/{{ doc_path }}/{{ test_upload }}
-Cookie: session={{ session }}
 
 #### Rename file
 POST {{ base_url }}/api/files/rename
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -156,13 +136,11 @@ Content-Type: application/json
 
 #### Delete renamed file
 DELETE {{ base_url }}/api/files/delete/{{ doc_path }}/{{ renamed_upload }}
-Cookie: session={{ session }}
 
 ### Comments
 
 #### Add comment
 POST {{ base_url }}/api/comments/add/{{ doc_path }}
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -179,7 +157,6 @@ Accept: application/json
 
 #### Delete comment
 DELETE {{ base_url }}/api/comments/delete/{{ doc_path }}/{{ comment_id }}
-Cookie: session={{ session }}
 
 ### Versions
 
@@ -193,18 +170,15 @@ Accept: application/json
 
 #### Restore version
 POST {{ base_url }}/api/versions/{{ doc_path }}/{{ version_ts }}/restore
-Cookie: session={{ session }}
 
 ### Admin
 
 #### Get wiki settings
 GET {{ base_url }}/api/settings/wiki
-Cookie: session={{ session }}
 Accept: application/json
 
 #### Update wiki settings
 POST {{ base_url }}/api/settings/wiki
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -222,7 +196,6 @@ Content-Type: application/json
 
 #### Update security settings
 POST {{ base_url }}/api/settings/security
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -237,12 +210,10 @@ Content-Type: application/json
 
 #### List users
 GET {{ base_url }}/api/users
-Cookie: session={{ session }}
 Accept: application/json
 
 #### Create user
 POST {{ base_url }}/api/users
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -253,7 +224,6 @@ Content-Type: application/json
 
 #### Update user
 PUT {{ base_url }}/api/users
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -264,7 +234,6 @@ Content-Type: application/json
 
 #### Delete user
 DELETE {{ base_url }}/api/users?username=newuser
-Cookie: session={{ session }}
 Content-Type: application/json
 
 ### Backup
@@ -272,20 +241,17 @@ Content-Type: application/json
 #### Start backup
 # @name start_backup
 POST {{ base_url }}/api/backup/start
-Cookie: session={{ session }}
 
 ### Store the backup job ID
 @backup_job_id = {{start_backup.response.body.$.jobId}}
 
 #### Check backup status
 GET {{ base_url }}/api/backup/status/{{ backup_job_id }}
-Cookie: session={{ session }}
 Accept: application/json
 
 #### List backups
 # @name list_backups
 GET {{ base_url }}/api/backup/list
-Cookie: session={{ session }}
 Accept: application/json
 
 ### Store the first backup filename
@@ -293,17 +259,14 @@ Accept: application/json
 
 #### Download backup
 GET {{ base_url }}/api/backup/download/{{ backup_filename }}
-Cookie: session={{ session }}
 
 #### Delete backup
 DELETE {{ base_url }}/api/backup/delete/{{ backup_filename }}
-Cookie: session={{ session }}
 
 ### Links API
 
 #### Add a new link to links document
 POST {{ base_url }}/api/links/add/links
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -316,7 +279,6 @@ Content-Type: application/json
 
 #### Edit an existing link (update GitHub link)
 PUT {{ base_url }}/api/links/edit/links
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -332,7 +294,6 @@ Content-Type: application/json
 
 #### Delete a link (remove Figma)
 DELETE {{ base_url }}/api/links/delete/links
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
@@ -341,9 +302,14 @@ Content-Type: application/json
 
 #### Fetch metadata
 POST {{ base_url }}/api/links/fetch-metadata
-Cookie: session={{ session }}
 Content-Type: application/json
 
 {
   "url": "https://www.kingorama.com/rostam-pop-up-book"
 }
+
+### Authentication cleanup
+
+#### Logout (run after the authenticated examples above)
+POST {{ base_url }}/api/logout
+Content-Type: application/json
