@@ -146,6 +146,11 @@
     display: none;
 }
 
+/* Page title (top-level heading) in bold */
+.chapter-links .toc-list > li > a {
+    font-weight: 600;
+}
+
 .chapter-links .toc-list {
     padding-left: 0;
 }
